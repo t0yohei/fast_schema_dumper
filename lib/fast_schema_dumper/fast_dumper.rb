@@ -218,7 +218,7 @@ module FastSchemaDumper
         if fk[:fk_data][:column] != inferred_column
           # Column name is custom, need to specify it
           fk_line += ", column: \"#{fk[:fk_data][:column]}\""
-        elsif !fk[:fk_data][:constraint_name].start_with?("fk_rails_")
+        elsif !/^fk_rails_[0-9a-f]{10}$/.match?(fk[:fk_data][:constraint_name])
           # Column matches default, check if constraint name is custom
           # Rails generates constraint names starting with "fk_rails_"
           fk_line += ", name: \"#{fk[:fk_data][:constraint_name]}\""
@@ -309,7 +309,7 @@ module FastSchemaDumper
       @output << table_def
 
       # columns
-      columns.reject { |c| c['COLUMN_NAME'] == 'id' }.each do |column|
+      columns.reject { |c| c['COLUMN_NAME'] == 'id' }.sort_by { |c| c['COLUMN_NAME'] }.each do |column|
         @output << "  #{format_column(column)}"
       end
 
@@ -372,6 +372,10 @@ module FastSchemaDumper
       # limit (varchar, char)
       if ['varchar', 'char'].include?(column['DATA_TYPE']) && column['CHARACTER_MAXIMUM_LENGTH'] &&
           column['CHARACTER_MAXIMUM_LENGTH'] != 255
+        col_def += ", limit: #{column['CHARACTER_MAXIMUM_LENGTH']}"
+      end
+
+      if ['binary', 'varbinary'].include?(column['DATA_TYPE']) && column['CHARACTER_MAXIMUM_LENGTH']
         col_def += ", limit: #{column['CHARACTER_MAXIMUM_LENGTH']}"
       end
 
@@ -438,8 +442,9 @@ module FastSchemaDumper
 
     def format_generated_column(column)
       col_def = "t.virtual \"#{column['COLUMN_NAME']}\", type: :#{map_column_type(column)}"
+      expression = column['GENERATION_EXPRESSION'].gsub("\\'", "'")
       col_def += ", comment: \"#{escape_string(column['COLUMN_COMMENT'])}\"" if column['COLUMN_COMMENT'] && !column['COLUMN_COMMENT'].empty?
-      col_def += ", as: \"#{escape_string(column['GENERATION_EXPRESSION'])}\""
+      col_def += ", as: \"#{escape_string(expression)}\""
       col_def += ", stored: true" if stored_generated_column?(column)
       col_def
     end
