@@ -245,12 +245,8 @@ class FastSchemaDumperTest < Minitest::Test
     fast_output = dump_schema
 
     %w[full_name slug].each do |column_name|
-      expected = normalize_generated_column_definition(
-        column_definition_for(active_record_output, "profiles", column_name)
-      )
-      actual = normalize_generated_column_definition(
-        column_definition_for(fast_output, "profiles", column_name)
-      )
+      expected = column_definition_for(active_record_output, "profiles", column_name)
+      actual = column_definition_for(fast_output, "profiles", column_name)
 
       assert_equal expected, actual, <<~MSG
         Expected generated column profiles.#{column_name} to match ActiveRecord::SchemaDumper output
@@ -290,10 +286,6 @@ class FastSchemaDumperTest < Minitest::Test
     raise "Could not find column #{table_name}.#{column_name} in schema output" unless definition
 
     definition.strip
-  end
-
-  def normalize_generated_column_definition(definition)
-    definition.gsub("\\\\'", "'")
   end
 
   def create_internal_tables!
