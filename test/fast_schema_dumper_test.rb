@@ -240,9 +240,20 @@ class FastSchemaDumperTest < Minitest::Test
     assert_match(/^end\n\nadd_foreign_key/m, output)
   end
 
+  def test_dump_matches_active_record_schema_dumper_output
+    active_record_output = normalized_schema_body(dump_active_record_schema)
+    fast_output = normalized_schema_body(dump_fast_schema)
+
+    assert_equal active_record_output, fast_output, schema_diff(active_record_output, fast_output)
+  end
+
   private
 
   def dump_schema
+    dump_fast_schema
+  end
+
+  def dump_fast_schema
     stream = StringIO.new
     FastSchemaDumper::SchemaDumper.dump(
       ActiveRecord::Base.connection_pool,
@@ -250,6 +261,54 @@ class FastSchemaDumperTest < Minitest::Test
       ActiveRecord::Base
     )
     stream.string
+  end
+
+  def dump_active_record_schema
+    stream = StringIO.new
+    ActiveRecord::SchemaDumper.dump(
+      ActiveRecord::Base.connection_pool,
+      stream,
+      ActiveRecord::Base
+    )
+    stream.string
+  end
+
+  def normalized_schema_body(output)
+    lines = output.lines
+    schema_start = lines.index { |line| line.start_with?("ActiveRecord::Schema[") }
+
+    normalized = if schema_start
+      body_lines = lines[(schema_start + 1)...]
+      body_lines.pop if body_lines.last == "end\n"
+      body_lines.map! do |line|
+        line.start_with?("  ") ? line[2..] : line
+      end
+      body_lines.join
+    else
+      output
+    end
+
+    normalized.sub(/\n?\z/, "\n")
+  end
+
+  def schema_diff(expected, actual)
+    expected_lines = expected.lines
+    actual_lines = actual.lines
+    max_lines = [expected_lines.length, actual_lines.length].max
+    mismatch_index = max_lines.times.find do |index|
+      expected_lines[index] != actual_lines[index]
+    end
+
+    return "No diff available" unless mismatch_index
+
+    expected_line = expected_lines[mismatch_index] || "<missing>\n"
+    actual_line = actual_lines[mismatch_index] || "<missing>\n"
+
+    <<~MSG
+      schema dump mismatch at line #{mismatch_index + 1}
+      expected: #{expected_line.inspect}
+      actual:   #{actual_line.inspect}
+    MSG
   end
 
   def create_internal_tables!
