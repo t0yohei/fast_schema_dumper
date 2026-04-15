@@ -212,7 +212,24 @@ class FormatColumnTest < Minitest::Test
     )
     actual = @dumper.send(:format_column, column)
     assert_equal(
-      't.virtual "full_name", type: :string, as: "concat(`first_name`,`last_name`)", comment: "generated name"',
+      't.virtual "full_name", type: :string, comment: "generated name", as: "concat(`first_name`,`last_name`)"',
+      actual
+    )
+  end
+
+  def test_format_stored_generated_column_with_comment_matches_rails_order
+    column = base_column(
+      "COLUMN_NAME" => "active_unique_key",
+      "DATA_TYPE" => "int",
+      "COLUMN_TYPE" => "int",
+      "EXTRA" => "STORED GENERATED",
+      "GENERATION_EXPRESSION" => "if((`deleted_at` is null),1,NULL)",
+      "COLUMN_COMMENT" => "generated discriminator",
+      "CHARACTER_MAXIMUM_LENGTH" => nil
+    )
+    actual = @dumper.send(:format_column, column)
+    assert_equal(
+      't.virtual "active_unique_key", type: :integer, comment: "generated discriminator", as: "if((`deleted_at` is null),1,NULL)", stored: true',
       actual
     )
   end

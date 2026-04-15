@@ -74,7 +74,7 @@ class FastSchemaDumperTest < Minitest::Test
         id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
         user_id BIGINT NOT NULL,
         display_name VARCHAR(255),
-        full_name VARCHAR(255) AS (CONCAT(display_name, ' (profile)')) VIRTUAL,
+        full_name VARCHAR(255) AS (CONCAT(display_name, ' (profile)')) VIRTUAL COMMENT 'Profile display label',
         slug VARCHAR(255) AS (LOWER(display_name)) STORED,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       ) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
@@ -195,7 +195,7 @@ class FastSchemaDumperTest < Minitest::Test
     output = dump_schema
 
     # VIRTUAL generated column
-    assert_match(/t\.virtual "full_name", type: :string/, output)
+    assert_match(/t\.virtual "full_name", type: :string, comment: "Profile display label", as: /, output)
     refute_match(/t\.virtual "full_name".*stored: true/, output)
 
     # STORED generated column
